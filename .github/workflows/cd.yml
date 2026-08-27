@@ -43,6 +43,51 @@ jobs:
           IMAGE_NAME=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
           echo "IMAGE_NAME=${IMAGE_NAME}" >> "$GITHUB_ENV"
 
+      - name: Create Docker network
+        run: |
+          docker network create crm-network
+
+      - name: Start MongoDB
+        run: |
+          docker run -d \
+            --name crm-graphql-mongo \
+            --network crm-network \
+            mongo:8
+
+      - name: Start Redis
+        run: |
+          docker run -d \
+            --name crm-graphql-redis \
+            --network crm-network \
+            redis:8-alpine
+
+      - name: Wait for MongoDB
+        run: |
+          for i in {1..30}; do
+            if docker exec crm-graphql-mongo \
+              mongosh --eval "db.adminCommand('ping')" \
+              > /dev/null 2>&1; then
+              echo "MongoDB is ready"
+              break
+            fi
+
+            echo "Waiting for MongoDB..."
+            sleep 2
+          done
+
+      - name: Wait for Redis
+        run: |
+          for i in {1..30}; do
+            if docker exec crm-graphql-redis \
+              redis-cli ping | grep -q PONG; then
+              echo "Redis is ready"
+              break
+            fi
+
+            echo "Waiting for Redis..."
+            sleep 2
+          done
+
       - name: Pull Docker image
         run: |
           docker pull ${{ env.REGISTRY }}/${IMAGE_NAME}:latest
@@ -52,16 +97,35 @@ jobs:
           docker image inspect \
             ${{ env.REGISTRY }}/${IMAGE_NAME}:latest
 
-      - name: Start container
+      - name: Start API container
         run: |
           docker run -d \
             --name crm-graphql-api \
+            --network crm-network \
             -p 4000:4000 \
+            -e NODE_ENV=production \
+            -e PORT=4000 \
+            -e MONGO_URI=mongodb://crm-graphql-mongo:27017/crm \
+            -e REDIS_URL=redis://crm-graphql-redis:6379 \
             ${{ env.REGISTRY }}/${IMAGE_NAME}:latest
 
-      - name: Wait for application
+      - name: Wait for API
         run: |
-          sleep 10
+          for i in {1..30}; do
+            if curl --silent --fail \
+              -X POST \
+              http://localhost:4000/ \
+              -H "Content-Type: application/json" \
+              --data '{"query":"query { health { status } }"}' \
+              > /dev/null; then
+
+              echo "API is ready"
+              break
+            fi
+
+            echo "Waiting for API..."
+            sleep 2
+          done
 
       - name: Health check
         run: |
@@ -71,6 +135,17 @@ jobs:
             -H "Content-Type: application/json" \
             --data '{"query":"query { health { status } }"}'
 
-      - name: Show container logs
+      - name: Show API logs
         if: always()
-        run: docker logs crm-graphql-api
+        run: |
+          docker logs crm-graphql-api
+
+      - name: Show MongoDB logs
+        if: always()
+        run: |
+          docker logs crm-graphql-mongo
+
+      - name: Show Redis logs
+        if: always()
+        run: |
+          docker logs crm-graphql-redis
