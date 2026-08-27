@@ -128,7 +128,7 @@ await connectRedis();
 
 const { url } = await startStandaloneServer(server, {
   listen: {
-    port: 4000,
+    port: Number(process.env.PORT) || 4000,
   },
 
   cors: {
