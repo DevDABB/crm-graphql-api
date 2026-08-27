@@ -34,4 +34,5 @@ EXPOSE 4000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "const net=require('net'); const s=net.createConnection({host:'127.0.0.1',port:4000}); s.on('connect',()=>{s.end();process.exit(0)}); s.on('error',()=>process.exit(1));"
 
-CMD ["node", "src/server.js"]
+# CMD ["node", "src/server.js"]
+CMD ["npm", "run", "docker:dev"]
