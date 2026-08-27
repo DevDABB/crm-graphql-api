@@ -1,0 +1,45 @@
+{
+  "name": "crm-graphql",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "seed": "node src/config/seed.js",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+  },
+  "jest": {
+    "collectCoverage": true,
+    "collectCoverageFrom": [
+      "src/**/*.js",
+      "!src/server.js"
+    ],
+    "coverageReporters": [
+      "text",
+      "html"
+    ]
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@apollo/server": "^5.5.1",
+    "@graphile/depth-limit": "^0.3.1",
+    "cors": "^2.8.6",
+    "dataloader": "^2.2.3",
+    "dotenv": "^17.4.2",
+    "graphql": "^16.14.2",
+    "graphql-validation-complexity": "^0.4.2",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.9.3",
+    "pino": "^10.3.1",
+    "redis": "^6.2.1"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.4.1",
+    "jest": "^30.4.2"
+  }
+}
