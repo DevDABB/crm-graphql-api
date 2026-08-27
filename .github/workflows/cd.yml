@@ -28,6 +28,7 @@ jobs:
       packages: read
 
     steps:
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -41,12 +42,22 @@ jobs:
       - name: Prepare image name
         run: |
           IMAGE_NAME=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
-          IMAGE_TAG="sha-${{ github.event.workflow_run.head_sha }}"
+
+          FULL_SHA="${{ github.event.workflow_run.head_sha }}"
+          SHORT_SHA="${FULL_SHA:0:7}"
+
+          IMAGE_TAG="sha-${SHORT_SHA}"
 
           echo "IMAGE_NAME=${IMAGE_NAME}" >> "$GITHUB_ENV"
           echo "IMAGE_TAG=${IMAGE_TAG}" >> "$GITHUB_ENV"
 
+          echo "=========================================="
+          echo "IMAGE INFORMATION"
+          echo "=========================================="
           echo "Image: ${IMAGE_NAME}:${IMAGE_TAG}"
+          echo "Full SHA: ${FULL_SHA}"
+          echo "Short SHA: ${SHORT_SHA}"
+          echo "=========================================="
 
       - name: Create Docker network
         run: |
@@ -72,6 +83,7 @@ jobs:
             if docker exec crm-graphql-mongo \
               mongosh --eval "db.adminCommand('ping')" \
               > /dev/null 2>&1; then
+
               echo "MongoDB is ready"
               break
             fi
@@ -85,6 +97,7 @@ jobs:
           for i in {1..30}; do
             if docker exec crm-graphql-redis \
               redis-cli ping | grep -q PONG; then
+
               echo "Redis is ready"
               break
             fi
@@ -96,12 +109,12 @@ jobs:
       - name: Pull versioned Docker image
         run: |
           docker pull \
-            ${{ env.REGISTRY }}/${IMAGE_NAME}:${IMAGE_TAG}
+            ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
 
       - name: Verify Docker image
         run: |
           docker image inspect \
-            ${{ env.REGISTRY }}/${IMAGE_NAME}:${IMAGE_TAG}
+            ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
 
       - name: Start API container
         run: |
@@ -113,11 +126,12 @@ jobs:
             -e PORT=4000 \
             -e MONGO_URI=mongodb://crm-graphql-mongo:27017/crm \
             -e REDIS_URL=redis://crm-graphql-redis:6379 \
-            ${{ env.REGISTRY }}/${IMAGE_NAME}:${IMAGE_TAG}
+            ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
 
       - name: Wait for API
         run: |
           for i in {1..30}; do
+
             if curl --silent --fail \
               -X POST \
               http://localhost:4000/ \
@@ -147,7 +161,7 @@ jobs:
           echo "DEPLOYMENT SUCCESSFUL"
           echo "=========================================="
           echo "Repository: ${IMAGE_NAME}"
-          echo "Image tag:  ${IMAGE_TAG}"
+          echo "Image tag: ${IMAGE_TAG}"
           echo "Commit SHA: ${{ github.event.workflow_run.head_sha }}"
           echo "=========================================="
 
